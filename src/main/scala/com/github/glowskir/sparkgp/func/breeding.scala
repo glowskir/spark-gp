@@ -6,8 +6,8 @@ package com.github.glowskir.sparkgp.func
 
 import com.github.glowskir.sparkgp.SparkSelection
 import com.github.glowskir.sparkgp.core._
-import fuel.func.SearchOperator
-import fuel.util.Options
+import fuel.func.{RandomMultiOperator, SearchOperator}
+import fuel.util.{Options, Random}
 import org.apache.spark.rdd.RDD
 
 import scala.annotation.tailrec
@@ -20,13 +20,12 @@ import scala.reflect.ClassTag
   */
 class Breeder[S: ClassTag, E](val sel: SparkSelection[S, E],
                               val searchOperator: () => SearchOperator[S]) {
-
   def selStream(src: RDD[(S, E)]): Stream[S] = sel(src)._1 #:: selStream(src)
 
   def breedn(n: Int, s: RDD[(S, E)]): RDD[S] = {
     @tailrec def breed(parStream: Stream[S], result: RDD[S] = s.context.emptyRDD[S], offspring: Seq[S] = List.empty, offspringCount: Int = 0): RDD[S] =
       if (offspringCount >= n)
-        s.context.makeRDD(offspring.take(n)) // this is utterly stupid way of making it
+        result.union(s.context.makeRDD(offspring)).zipWithIndex().filter(_._2 < n).map(_._1)
       else {
         val (off, parentTail) = searchOperator()(parStream)
         val newOffspringCandidate = offspring ++ off
@@ -57,6 +56,6 @@ object SparkSimpleBreeder {
   def apply[S: ClassTag, E](sel: SparkSelection[S, E],
                             searchOperator: () => SearchOperator[S]) = new SparkSimpleBreeder[S, E](sel, searchOperator)
 
-  def apply[S: ClassTag, E](sel: SparkSelection[S, E], searchOperators: RDD[SearchOperator[S]])(implicit config: Options) =
-    new SparkSimpleBreeder[S, E](sel, SparkRandomMultiOperator(searchOperators))
+  def apply[S: ClassTag, E](sel: SparkSelection[S, E], searchOperators: Seq[SearchOperator[S]])(implicit config: Options) =
+    new SparkSimpleBreeder[S, E](sel, RandomMultiOperator(searchOperators: _*)(config, new Random()))
 }

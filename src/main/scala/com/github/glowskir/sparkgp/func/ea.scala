@@ -6,20 +6,22 @@ package com.github.glowskir.sparkgp
 
 import com.github.glowskir.sparkgp.core.SparkStatePop
 import com.github.glowskir.sparkgp.func._
-import com.github.glowskir.sparkgp.moves.SparkMoves
 import fuel.func._
+import fuel.moves.Moves
 import fuel.util.{Collector, Options}
 import org.apache.spark.SparkContext
 
 import scala.reflect.ClassTag
 
 
-abstract class SparkEACore[S: ClassTag, E](moves: SparkMoves[S], evaluation: SparkEvaluation[S, E],
+abstract class SparkEACore[S: ClassTag, E](moves: Moves[S], evaluation: SparkEvaluation[S, E],
                                            stop: (S, E) => Boolean = (s: S, e: E) => false)(
                                             implicit opt: Options, sc: SparkContext)
-  extends IterativeSearch[SparkStatePop[(S, E)]] with (() => SparkStatePop[(S, E)]) with Serializable  {
+  extends IterativeSearch[SparkStatePop[(S, E)]] with (() => SparkStatePop[(S, E)]) with Serializable {
 
-  def initialize: Unit => SparkStatePop[(S, E)] = SparkRandomStatePop(moves.newSolution _) andThen evaluate
+  def initialize: Unit => SparkStatePop[(S, E)] = ((_: Unit) => {
+    sc.makeRDD(0.until(1000).map(_ => (moves.newSolution _)()))
+  }) andThen evaluate
 
   def evaluate: (SparkStatePop[S]) => SparkStatePop[(S, E)] = evaluation andThen report
 
@@ -35,16 +37,17 @@ abstract class SparkEACore[S: ClassTag, E](moves: SparkMoves[S], evaluation: Spa
 }
 
 
-class SparkSimpleEA[S: ClassTag, E](moves: SparkMoves[S],
+class SparkSimpleEA[S: ClassTag, E](moves: Moves[S],
                                     eval: S => E,
                                     stop: (S, E) => Boolean = (s: S, e: E) => false)(
-                                     implicit opt: Options, coll: Collector, ordering: Ordering[E])
-  extends SparkEACore[S, E](moves, SparkEvaluation(eval), stop)(implicitly, opt, moves.moves.context) {
+                                     implicit opt: Options, coll: Collector, ordering: Ordering[E], sc: SparkContext)
+  extends SparkEACore[S, E](moves, SparkEvaluation(eval), stop)(implicitly, opt, sc) {
 
   def selection: SparkSelection[S, E] = new SparkTournamentSelection[S, E](ordering)
 
+
   override def iter: (SparkStatePop[(S, E)]) => SparkStatePop[(S, E)] =
-    SparkSimpleBreeder[S, E](selection, moves.moves) andThen evaluate
+    SparkSimpleBreeder[S, E](selection, moves) andThen evaluate
 
 
   val bsf = SparkBestSoFar[S, E](ordering, it)
@@ -53,16 +56,16 @@ class SparkSimpleEA[S: ClassTag, E](moves: SparkMoves[S],
 }
 
 object SparkSimpleEA {
-  def apply[S: ClassTag, E](moves: SparkMoves[S], eval: S => E)(
-    implicit opt: Options, coll: Collector, ordering: Ordering[E]) =
+  def apply[S: ClassTag, E](moves: Moves[S], eval: S => E)(
+    implicit opt: Options, coll: Collector, ordering: Ordering[E], sc: SparkContext) =
     new SparkSimpleEA(moves, eval)
 
-  def apply[S: ClassTag, E](moves: SparkMoves[S], eval: S => E, stop: (S, E) => Boolean)(
-    implicit opt: Options, coll: Collector, ordering: Ordering[E]) =
+  def apply[S: ClassTag, E](moves: Moves[S], eval: S => E, stop: (S, E) => Boolean)(
+    implicit opt: Options, coll: Collector, ordering: Ordering[E], sc: SparkContext) =
     new SparkSimpleEA(moves, eval, stop)
 
   /** Creates EA that should stop when evaluation reaches certain value */
-  def apply[S: ClassTag, E](moves: SparkMoves[S], eval: S => E, optimalValue: E)(
-    implicit opt: Options, coll: Collector, ordering: Ordering[E]) =
+  def apply[S: ClassTag, E](moves: Moves[S], eval: S => E, optimalValue: E)(
+    implicit opt: Options, coll: Collector, ordering: Ordering[E], sc: SparkContext) =
     new SparkSimpleEA(moves, eval, (_: S, e: E) => e == optimalValue)
 }

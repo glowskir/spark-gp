@@ -10,7 +10,7 @@ package object func {
 
   object SparkEvaluation {
     def apply[S, E](f: (S) => E) = {
-      (sp: SparkStatePop[S]) => sp.map(s =>(s, f(s)))
+      (sp: SparkStatePop[S]) => sp.map(s => (s, f(s)))
     }
   }
 

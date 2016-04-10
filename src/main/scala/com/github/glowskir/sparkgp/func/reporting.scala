@@ -1,7 +1,7 @@
 package com.github.glowskir.sparkgp.func
 
 import com.github.glowskir.sparkgp.core.SparkStatePop
-import fuel.core.StatePop
+import com.github.glowskir.sparkgp.util.OrderingTupleBySecond
 import fuel.util.{Collector, Counter, Options}
 
 /**
@@ -17,11 +17,7 @@ class SparkBestSoFar[S, E](opt: Options, coll: Collector, o: Ordering[E], cnt: C
   val saveBestSoFar = opt('saveBestSoFar, false)
 
   def apply(s: SparkStatePop[(S, E)]) = {
-    val bestOfGen = s.min()(
-      new Ordering[(S,E)]() {
-        override def compare(x: (S, E), y: (S, E)): Int = o.compare(x._2, y._2)
-      }
-    )
+    val bestOfGen = s.min()(OrderingTupleBySecond[S, E]()(o))
     if (bestSoFar.isEmpty || o.lt(bestOfGen._2, best.get._2)) {
       best = Some(bestOfGen)
       updateBest(s)
