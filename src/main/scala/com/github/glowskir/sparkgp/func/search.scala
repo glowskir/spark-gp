@@ -1,7 +1,7 @@
 package com.github.glowskir.sparkgp.func
 
 import fuel.func.SearchOperator
-import fuel.util.{Options, TRandom}
+import fuel.util.Options
 import org.apache.spark.rdd.RDD
 
 ///**
@@ -58,7 +58,7 @@ import org.apache.spark.rdd.RDD
 //  *
 //  */
 object SparkRandomMultiOperator {
-  def apply[S](pipes: RDD[SearchOperator[S]])(implicit opt: Options, rng: TRandom) = {
+  def apply[S](pipes: RDD[SearchOperator[S]])(implicit opt: Options) = {
     () => pipes.takeSample(true, 1).head
   }
 }

@@ -8,7 +8,7 @@ import com.github.glowskir.sparkgp.core.SparkStatePop
 import com.github.glowskir.sparkgp.func._
 import com.github.glowskir.sparkgp.moves.SparkMoves
 import fuel.func._
-import fuel.util.{Collector, Options, TRandom}
+import fuel.util.{Collector, Options}
 import org.apache.spark.SparkContext
 
 import scala.reflect.ClassTag
@@ -38,7 +38,7 @@ abstract class SparkEACore[S: ClassTag, E](moves: SparkMoves[S], evaluation: Spa
 class SparkSimpleEA[S: ClassTag, E](moves: SparkMoves[S],
                                     eval: S => E,
                                     stop: (S, E) => Boolean = (s: S, e: E) => false)(
-                                     implicit opt: Options, coll: Collector, rng: TRandom, ordering: Ordering[E])
+                                     implicit opt: Options, coll: Collector, ordering: Ordering[E])
   extends SparkEACore[S, E](moves, SparkEvaluation(eval), stop)(implicitly, opt, moves.moves.context) {
 
   def selection: SparkSelection[S, E] = new SparkTournamentSelection[S, E](ordering)
@@ -54,15 +54,15 @@ class SparkSimpleEA[S: ClassTag, E](moves: SparkMoves[S],
 
 object SparkSimpleEA {
   def apply[S: ClassTag, E](moves: SparkMoves[S], eval: S => E)(
-    implicit opt: Options, coll: Collector, rng: TRandom, ordering: Ordering[E]) =
+    implicit opt: Options, coll: Collector, ordering: Ordering[E]) =
     new SparkSimpleEA(moves, eval)
 
   def apply[S: ClassTag, E](moves: SparkMoves[S], eval: S => E, stop: (S, E) => Boolean)(
-    implicit opt: Options, coll: Collector, rng: TRandom, ordering: Ordering[E]) =
+    implicit opt: Options, coll: Collector, ordering: Ordering[E]) =
     new SparkSimpleEA(moves, eval, stop)
 
   /** Creates EA that should stop when evaluation reaches certain value */
   def apply[S: ClassTag, E](moves: SparkMoves[S], eval: S => E, optimalValue: E)(
-    implicit opt: Options, coll: Collector, rng: TRandom, ordering: Ordering[E]) =
+    implicit opt: Options, coll: Collector, ordering: Ordering[E]) =
     new SparkSimpleEA(moves, eval, (_: S, e: E) => e == optimalValue)
 }

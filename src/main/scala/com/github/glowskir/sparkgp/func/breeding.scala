@@ -7,7 +7,7 @@ package com.github.glowskir.sparkgp.func
 import com.github.glowskir.sparkgp.SparkSelection
 import com.github.glowskir.sparkgp.core._
 import fuel.func.SearchOperator
-import fuel.util.{Options, TRandom}
+import fuel.util.Options
 import org.apache.spark.rdd.RDD
 
 import scala.annotation.tailrec
@@ -57,7 +57,6 @@ object SparkSimpleBreeder {
   def apply[S: ClassTag, E](sel: SparkSelection[S, E],
                             searchOperator: () => SearchOperator[S]) = new SparkSimpleBreeder[S, E](sel, searchOperator)
 
-  def apply[S: ClassTag, E](sel: SparkSelection[S, E], searchOperators: RDD[SearchOperator[S]])(
-    implicit config: Options, rng: TRandom) =
+  def apply[S: ClassTag, E](sel: SparkSelection[S, E], searchOperators: RDD[SearchOperator[S]])(implicit config: Options) =
     new SparkSimpleBreeder[S, E](sel, SparkRandomMultiOperator(searchOperators))
 }

@@ -1,6 +1,5 @@
 package com.github.glowskir.sparkgp.moves
 
-import fuel.util.TRandom
 import org.apache.spark.SparkContext
 
 import scala.collection.immutable.BitSet
@@ -9,8 +8,9 @@ import scala.collection.immutable.BitSet
   * Created by glowskir on 06.04.16.
   * TODO avoid copy paste
   */
-class BitSetMoves(numVars: Int)(implicit rng: TRandom, val context: SparkContext) extends VectorMoves[BitSet] {
+class BitSetMoves(numVars: Int)(implicit val context: SparkContext) extends VectorMoves[BitSet] {
   assert(numVars > 0)
+  val rng = new java.util.Random()
 
   override def newSolution: BitSet = BitSet.empty ++
     (for (i <- 0.until(numVars); if (rng.nextBoolean)) yield i)
@@ -39,5 +39,5 @@ class BitSetMoves(numVars: Int)(implicit rng: TRandom, val context: SparkContext
 }
 
 object BitSetMoves {
-  def apply(numVars: Int)(implicit rng: TRandom, context: SparkContext) = new BitSetMoves(numVars)
+  def apply(numVars: Int)(implicit context: SparkContext) = new BitSetMoves(numVars)
 }
