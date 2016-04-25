@@ -13,3 +13,5 @@ libraryDependencies += "org.slf4j" % "slf4j-log4j12" % "1.2"
 run in Compile <<= Defaults.runTask(fullClasspath in Compile, mainClass in (Compile, run), runner in (Compile, run))
 
 enablePlugins(GitVersioning)
+
+triggeredMessage in ThisBuild := Watched.clearWhenTriggered
