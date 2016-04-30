@@ -15,3 +15,5 @@ run in Compile <<= Defaults.runTask(fullClasspath in Compile, mainClass in (Comp
 enablePlugins(GitVersioning)
 
 triggeredMessage in ThisBuild := Watched.clearWhenTriggered
+
+cancelable in Global := true
