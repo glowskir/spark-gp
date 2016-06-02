@@ -20,7 +20,6 @@ object SparkTermination {
   class NoImprovement[S, E] {
     def apply(ref: () => (S, E))(implicit ord: PartialOrdering[E]) = {
       (s: SparkStatePop[(S, E)]) => {
-        import s.sqlContext.implicits._
         s.flatMap(es => ord.tryCompare(es._2, ref()._2).map(_ >= 0) ).reduce(_ && _)
       }
     }
@@ -40,7 +39,6 @@ object SparkTermination {
   def apply[S, E](otherCond: (S, E) => Boolean = (_: S, _: E) => false)(implicit config: Options) = Seq(
     MaxTime(config),
     (s: SparkStatePop[(S, E)]) => {
-      import s.sqlContext.implicits._
       s.map(es => otherCond(es._1, es._2)).reduce(_ || _)
     })
 }

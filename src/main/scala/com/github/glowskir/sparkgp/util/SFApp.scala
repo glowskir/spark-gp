@@ -17,6 +17,6 @@ trait SApp extends Logging {
     val newsc = new SparkContext(conf)
     log.warn(conf.toDebugString)
     newsc.setLogLevel("WARN")
-    new SQLContext(newsc)
+    newsc
   }
 }
