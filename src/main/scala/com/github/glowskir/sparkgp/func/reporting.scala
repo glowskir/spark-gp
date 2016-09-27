@@ -17,7 +17,7 @@ class SparkBestSoFar[S, E](opt: Options, coll: Collector, o: Ordering[E], cnt: C
   val saveBestSoFar = opt('saveBestSoFar, false)
 
   def apply(s: SparkStatePop[(S, E)]) = {
-    val bestOfGen = s.min()(OrderingTupleBySecond[S, E]()(o))
+    val bestOfGen = s.map(_.min()(OrderingTupleBySecond[S, E]()(o))).min(OrderingTupleBySecond[S, E]()(o))
     if (bestSoFar.isEmpty || o.lt(bestOfGen._2, best.get._2)) {
       best = Some(bestOfGen)
       updateBest(s)

@@ -21,9 +21,9 @@ import scala.reflect.ClassTag
 class Breeder[S: ClassTag, E: ClassTag](val sel: SparkSelection[S, E],
                                         val searchOperator: () => SearchOperator[S])(implicit ord: Ordering[E]) {
   def breedn(n: Int, s: SparkStatePop[(S, E)]): SparkStatePop[S] = {
-    @tailrec def breed(parStream: Stream[S], result: RDD[S] = s.context.emptyRDD[S], offspring: Seq[S] = List.empty, offspringCount: Int = 0): RDD[S] =
+    @tailrec def breed(parStream: Stream[S], result: RDD[S], offspring: Seq[S] = List.empty, offspringCount: Int = 0): RDD[S] =
       if (offspringCount >= n)
-        result.union(s.context.makeRDD(offspring)).zipWithIndex().filter(_._2 < n).map(_._1)
+        result.union(result.context.makeRDD(offspring)).zipWithIndex().filter(_._2 < n).map(_._1)
       else {
         val (off, parentTail) = searchOperator()(parStream)
         val newOffspringCandidate = offspring ++ off
@@ -35,9 +35,10 @@ class Breeder[S: ClassTag, E: ClassTag](val sel: SparkSelection[S, E],
         }
         breed(parentTail, newResult, newOffspring, newOffspringCount)
       }
-
-    val breeded = breed(sel(s).map(_._1)).localCheckpoint()
-    breeded.repartition(8).cache()
+    s.map(s => {
+      val breeded = breed(sel(s).map(_._1), s.context.emptyRDD).localCheckpoint()
+      breeded.repartition(8).cache()
+    })
   }
 }
 
@@ -48,7 +49,7 @@ class SparkSimpleBreeder[S: ClassTag, E: ClassTag](override val sel: SparkSelect
                                                    override val searchOperator: () => SearchOperator[S])(implicit ord: Ordering[E])
   extends Breeder[S, E](sel, searchOperator) with GenerationalBreeder[S, E] {
 
-  override def apply(s: SparkStatePop[(S, E)]) = breedn(s.count().toInt, s)
+  override def apply(s: SparkStatePop[(S, E)]) = breedn(s.map(_.count()).sum.toInt, s)
 }
 
 object SparkSimpleBreeder {
