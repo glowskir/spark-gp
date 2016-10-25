@@ -20,7 +20,7 @@ private final case class UnitFuncToIntFunc[S](unitf: () => S) extends ((Long) =>
 class SparkRandomStatePop[S: ClassTag](solutionGenerator: () => S)(implicit opt: Options, sc: SparkContext)
   extends Initializer[SparkStatePop[S]] with Serializable {
   val populationSize = opt('populationSize, 1000, (_: Int) % 10 == 0)
-  val islands = opt('islands, 1, (_: Int) >= 1)
+  val islands = opt('islands, 2, (_: Int) >= 1)
 
   def apply(x: Unit): SparkStatePop[S] = {
     val rnd = new scala.util.Random()

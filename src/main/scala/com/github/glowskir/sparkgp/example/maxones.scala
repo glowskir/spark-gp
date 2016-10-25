@@ -1,6 +1,6 @@
 package com.github.glowskir.sparkgp.example
 
-import com.github.glowskir.sparkgp.SparkSimpleEA
+import com.github.glowskir.sparkgp.{SparkMigrationEA, SparkSimpleEA}
 import com.github.glowskir.sparkgp.util.{SApp, Timing}
 import fuel.func.RunExperiment
 import fuel.moves.BitSetMoves
@@ -12,7 +12,7 @@ import scala.collection.immutable.BitSet
 
 object MaxOnes1 extends FApp with SApp {
 
-  RunExperiment(SparkSimpleEA(
+  RunExperiment(new SparkMigrationEA(
     BitSetMoves(100),
     (s: BitSet) => s.size,
     (s: BitSet, e: Int) => e == 0

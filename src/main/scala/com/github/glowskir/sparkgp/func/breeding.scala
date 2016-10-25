@@ -6,11 +6,13 @@ package com.github.glowskir.sparkgp.func
 
 import com.github.glowskir.sparkgp.SparkSelection
 import com.github.glowskir.sparkgp.core._
+import com.github.glowskir.sparkgp.util.OrderingTupleBySecond
 import fuel.func.{RandomMultiOperator, SearchOperator}
 import fuel.util.{Options, Random}
 import org.apache.spark.rdd.RDD
 
 import scala.annotation.tailrec
+import scala.collection.{SortedSet, mutable}
 import scala.reflect.ClassTag
 
 
@@ -42,11 +44,71 @@ class Breeder[S: ClassTag, E: ClassTag](val sel: SparkSelection[S, E],
   }
 }
 
+trait Topology[S, E] {
+  def createExchangeTopology(s: SparkStatePop[(S, E)]): Seq[(Int, Int)]
+}
+
+trait RandomTopology[S, E] extends Topology[S, E] {
+  override def createExchangeTopology(s: SparkStatePop[(S, E)]): Seq[(Int, Int)] = {
+    val shuffled = new Random().shuffle(s.indices.toList)
+    shuffled.zip(shuffled.tail)
+  }
+}
+
+trait RingTopology[S, E] extends Topology[S, E] {
+  override def createExchangeTopology(s: SparkStatePop[(S, E)]): Seq[(Int, Int)] = {
+    s.indices.zip(s.indices.tail)
+  }
+}
+
+abstract class MigrationBreeder[S: ClassTag, E: ClassTag](override val sel: SparkSelection[S, E],
+                                                          override val searchOperator: () => SearchOperator[S],
+                                                          val generation: Int)(implicit config: Options, ord: Ordering[E])
+  extends Breeder[S, E](sel, searchOperator) with GenerationalBreeder[S, E] with Topology[S, E] {
+
+  val migrationInterval = config("migrationInterval", 1, (x: Int) => {
+    x > 0
+  })
+  val migrationSize = config("migrationSize", 10, (x: Int) => {
+    x > 0
+  })
+
+
+  override def apply(s: SparkStatePop[(S, E)]): SparkStatePop[S] = {
+
+    val migrated = if (migrationInterval != 0 && generation % migrationInterval == 0) {
+      val exchangeTopology = createExchangeTopology(s)
+
+      @tailrec
+      def applyExchange(s: SparkStatePop[(S, E)], exchanges: Seq[(Int, Int)]): SparkStatePop[(S, E)] = {
+        exchanges match {
+          case Seq() => s
+          case exchange +: otherExchanges =>
+            val a = s(exchange._1)
+            val b = s(exchange._2)
+            val size: Long = Math.min(Math.min(a.count(), b.count()), migrationSize)
+            val topA: Set[(S, E)] = a.top(size.toInt)(OrderingTupleBySecond[S, E]()(ord)).toSet
+            val topB: Set[(S, E)] = b.top(size.toInt)(OrderingTupleBySecond[S, E]()(ord)).toSet
+            val newA = a.filter(x => !topA.contains(x)).union(a.context.makeRDD(topB.toList))
+            val newB = b.filter(x => !topB.contains(x)).union(a.context.makeRDD(topA.toList))
+            val newS: Seq[RDD[(S, E)]] = s.updated(exchange._1, newA).updated(exchange._2, newB)
+            applyExchange(newS, otherExchanges)
+        }
+      }
+      applyExchange(s, exchangeTopology).map(_.localCheckpoint())
+    } else {
+      s
+    }
+    breedn(migrated.map(_.count()).sum.toInt, migrated)
+  }
+
+}
+
 trait GenerationalBreeder[S, E] extends (SparkStatePop[(S, E)] => SparkStatePop[S])
 
-class SparkSimpleBreeder[S: ClassTag, E: ClassTag](override val sel: SparkSelection[S, E],
+final class SparkSimpleBreeder[S: ClassTag, E: ClassTag](override val sel: SparkSelection[S, E],
 
-                                                   override val searchOperator: () => SearchOperator[S])(implicit ord: Ordering[E])
+                                                         override val searchOperator: () => SearchOperator[S])(implicit ord: Ordering[E])
   extends Breeder[S, E](sel, searchOperator) with GenerationalBreeder[S, E] {
 
   override def apply(s: SparkStatePop[(S, E)]) = breedn(s.map(_.count()).sum.toInt, s)

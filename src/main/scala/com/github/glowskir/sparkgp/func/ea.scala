@@ -8,7 +8,7 @@ import com.github.glowskir.sparkgp.core.SparkStatePop
 import com.github.glowskir.sparkgp.func._
 import fuel.func._
 import fuel.moves.Moves
-import fuel.util.{Collector, Options}
+import fuel.util.{Collector, Options, Random}
 import org.apache.spark.SparkContext
 
 import scala.reflect.ClassTag
@@ -49,6 +49,23 @@ class SparkSimpleEA[S: ClassTag, E: ClassTag](moves: Moves[S],
 
   override def iter: (SparkStatePop[(S, E)]) => SparkStatePop[(S, E)] =
     SparkSimpleBreeder[S, E](selection, moves) andThen evaluate
+
+  val bsf = SparkBestSoFar[S, E](ordering, it)
+
+  override def report: (SparkStatePop[(S, E)]) => SparkStatePop[(S, E)] = bsf
+}
+
+class SparkMigrationEA[S: ClassTag, E: ClassTag](moves: Moves[S],
+                                              eval: S => E,
+                                              stop: (S, E) => Boolean = (s: S, e: E) => false)(
+                                               implicit opt: Options, coll: Collector, ordering: Ordering[E], sc: SparkContext)
+  extends SparkEACore[S, E](moves, SparkEvaluation(eval), stop)(implicitly, implicitly, opt, sc) {
+
+
+  def selection: SparkSelection[S, E] = new TournamentSelection[S, E](ordering)
+
+  override def iter: (SparkStatePop[(S, E)]) => SparkStatePop[(S, E)] =
+    new MigrationBreeder[S, E](selection, RandomMultiOperator(moves: _*)(opt, new Random()), it.count.toInt) with RingTopology[S,E] andThen evaluate
 
   val bsf = SparkBestSoFar[S, E](ordering, it)
 
