@@ -24,17 +24,18 @@ class SparkRandomStatePop[S: ClassTag](solutionGenerator: () => S)(implicit opt:
 
   def apply(x: Unit): SparkStatePop[S] = {
     val rnd = new scala.util.Random()
-    var boundaries = SortedSet(0, populationSize)
-    for (_ <- (1 to (islands - 1))) {
-      val oldSize = boundaries.size
-      do {
-        boundaries = boundaries + (rnd.nextInt(populationSize - 1) + 1)
-      } while (boundaries.size == oldSize)
-    }
-    val boundariesList = boundaries.toList
-    boundariesList.zip(boundariesList.tail).map(t => t._2 - t._1).map(population => {
-      sc.range(0, population).map(UnitFuncToIntFunc(solutionGenerator))
-    })
+    (1 to islands).map(_=> sc.range(0, populationSize/islands).map(UnitFuncToIntFunc(solutionGenerator)))
+//    var boundaries = SortedSet(0, populationSize)
+//    for (_ <- (1 to (islands - 1))) {
+//      val oldSize = boundaries.size
+//      do {
+//        boundaries = boundaries + (rnd.nextInt(populationSize - 1) + 1)
+//      } while (boundaries.size == oldSize)
+//    }
+//    val boundariesList = boundaries.toList
+//    boundariesList.zip(boundariesList.tail).map(t => t._2 - t._1).map(population => {
+//      sc.range(0, population).map(UnitFuncToIntFunc(solutionGenerator))
+//    })
   }
 }
 

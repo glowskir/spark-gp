@@ -41,7 +41,7 @@ class TournamentSelection[S, E](val ordering: Ordering[E], val tournamentSize: I
 
   def apply(pop: RDD[(S, E)]): Stream[(S, E)] = {
     Stream.consWrapper(apply(pop)).#:::(
-      pop.takeSample(withReplacement = true, num = 7 * 10).iterator.grouped(7).map(_.minBy(_._2)).toStream
+      pop.takeSample(withReplacement = true, num = tournamentSize * 10).iterator.grouped(tournamentSize).map(_.minBy(_._2)).toStream
     )
   }
 }

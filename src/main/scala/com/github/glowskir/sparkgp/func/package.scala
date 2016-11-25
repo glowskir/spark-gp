@@ -12,7 +12,7 @@ package object func {
 
   object SparkEvaluation {
     def apply[S: ClassTag, E](f: (S) => E) = {
-      (sp: SparkStatePop[S]) => sp.map(i => i.map(s => (s, f(s))).cache())
+      (sp: SparkStatePop[S]) => sp.toList.par.map(i => i.map(s => (s, f(s))).localCheckpoint()).toList.toSeq
     }
   }
 
