@@ -48,7 +48,7 @@ class Breeder[S: ClassTag, E: ClassTag](val sel: SparkSelection[S, E],
       }
 
     val breeded = breed(sel(s).map(_._1), s.context.emptyRDD).localCheckpoint()
-    breeded.repartition(8).localCheckpoint()
+    breeded.localCheckpoint()
   }
 
 }
@@ -85,10 +85,10 @@ abstract class MigrationBreeder[S: ClassTag, E: ClassTag](override val sel: Spar
                                                           val generation: Int)(implicit config: Options, ord: Ordering[E])
   extends Breeder[S, E](sel, searchOperator) with GenerationalBreeder[S, E] with Topology[S, E] {
 
-  val migrationInterval = config("migrationInterval", 2, (x: Int) => {
+  val migrationInterval : Int = config("migrationInterval", 5, (x: Int) => {
     x > 0
   })
-  val migrationPercent = config("migrationPercent", 2, (x: Int) => {
+  val migrationPercent : Int = config("migrationPercent", 5, (x: Int) => {
     x > 0
   })
 

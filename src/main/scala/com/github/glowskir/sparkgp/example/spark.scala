@@ -3,55 +3,47 @@ package com.github.glowskir.sparkgp.example
 
 import com.github.glowskir.sparkgp.SparkMigrationEA
 import fuel.func.RunExperiment
-import fuel.moves.BitSetMoves
+import fuel.moves.{BitSetMoves, PermutationMoves}
 import fuel.util._
 import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.collection.immutable.BitSet
 
-object BroadcastTest {
-  def main(args: Array[String]) {
 
-    val bcName = if (args.length > 2) args(2) else "Http"
-    val blockSize = if (args.length > 3) args(3) else "4096"
-
-    val sparkConf = new SparkConf().setAppName("Broadcast Test")
-      .set("spark.broadcast.factory", s"org.apache.spark.broadcast.${bcName}BroadcastFactory")
-      .set("spark.broadcast.blockSize", blockSize)
-    val sc = new SparkContext(sparkConf)
-
-    val slices = if (args.length > 0) args(0).toInt else 2
-    val num = if (args.length > 1) args(1).toInt else 1000000
-
-    val arr1 = (0 until num).toArray
-
-    for (i <- 0 until 3) {
-      println("Iteration " + i)
-      println("===========")
-      val startTime = System.nanoTime
-      val barr1 = sc.broadcast(arr1)
-      val observedSizes = sc.parallelize(1 to 10, slices).map(_ => barr1.value.size)
-      // Collect the small RDD so we can print the observed sizes locally.
-      observedSizes.collect().foreach(i => println(i))
-      println("Iteration %d took %.0f milliseconds".format(i, (System.nanoTime - startTime) / 1E6))
-    }
-
-    sc.stop()
-  }
-}
 object MaxOnesTest {
   def main(args: Array[String]) {
     implicit lazy val opt = Options(args)
     implicit lazy val rng = Rng(opt)
     implicit lazy val coll = new CollectorFile(opt)
-    val sparkConf = new SparkConf().setAppName("MaxOnesTest Test")
+    val maxOnesSize = opt('maxOnesSize, 10000, (_: Int) >= 0)
+    val sparkConf = new SparkConf().setAppName("MaxOnesTest")
     implicit val sc = new SparkContext(sparkConf)
     RunExperiment(new SparkMigrationEA(
-      BitSetMoves(100),
+      BitSetMoves(maxOnesSize),
       (s: BitSet) => s.size,
       (s: BitSet, e: Int) => e == 0
     ))
+    sc.stop()
+  }
+}
 
+object TSPTest {
+  def main(args: Array[String]) {
+    implicit lazy val opt = Options('numCities -> 30, 'maxGenerations -> 300) ++ Options(args)
+    implicit lazy val rng = Rng(opt)
+    implicit lazy val coll = new CollectorFile(opt)
+    val sparkConf = new SparkConf().setAppName("TSPTest")
+    implicit val sc = new SparkContext(sparkConf)
+
+    val numCities = opt('numCities, (_: Int) > 0)
+    val cities = Seq.fill(numCities)((rng.nextDouble, rng.nextDouble))
+    val distances = for (i <- cities) yield for (j <- cities)
+      yield math.hypot(i._1 - j._1, i._2 - j._2)
+
+    def eval(s: Seq[Int]) =
+      s.indices.map(i => distances(s(i))(s((i + 1) % s.size))).sum
+
+    RunExperiment(new SparkMigrationEA(PermutationMoves(numCities), eval))
     sc.stop()
   }
 }
