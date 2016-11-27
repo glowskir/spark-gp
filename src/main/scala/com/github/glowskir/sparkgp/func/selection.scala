@@ -32,16 +32,16 @@ class RandomSelection[S, E] extends StochasticSelection[S, E] {
 }
 
 
-class TournamentSelection[S, E](val ordering: Ordering[E], val tournamentSize: Int)
+class TournamentSelection[S, E](val ordering: Ordering[E], val tournamentSize: Int, val sizeHint: Int)
   extends StochasticSelection[S, E] {
   implicit private def iordering = ordering
 
   def this(o: Ordering[E])(implicit opt: Options) =
-    this(o, opt('tournamentSize, 7, (_: Int) >= 2))
+    this(o, opt('tournamentSize, 7, (_: Int) >= 2), Math.min(opt('populationSize, 10000) / opt('islands, 1) / opt('tournamentSize, 7) / 10 + 1, 10000))
 
   def apply(pop: RDD[(S, E)]): Stream[(S, E)] = {
     Stream.consWrapper(apply(pop)).#:::(
-      pop.takeSample(withReplacement = true, num = tournamentSize * 10).iterator.grouped(tournamentSize).map(_.minBy(_._2)).toStream
+      pop.takeSample(withReplacement = true, num = tournamentSize * sizeHint).iterator.grouped(tournamentSize).map(_.minBy(_._2)).toStream
     )
   }
 }

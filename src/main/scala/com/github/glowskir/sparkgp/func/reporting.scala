@@ -4,6 +4,9 @@ import com.github.glowskir.sparkgp.core.SparkStatePop
 import com.github.glowskir.sparkgp.util.OrderingTupleBySecond
 import fuel.util.{Collector, Counter, Options}
 
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
+
 /**
   * Created by glowskir on 06.04.16.
   */
@@ -17,14 +20,16 @@ class SparkBestSoFar[S, E](opt: Options, coll: Collector, o: Ordering[E], cnt: C
   val saveBestSoFar = opt('saveBestSoFar, false)
 
   def apply(s: SparkStatePop[(S, E)]) = {
-    val bestOfGen = s.par.map(_.min()(OrderingTupleBySecond[S, E]()(o))).min(OrderingTupleBySecond[S, E]()(o))
-    if (bestSoFar.isEmpty || o.lt(bestOfGen._2, best.get._2)) {
-      best = Some(bestOfGen)
-      updateBest(s)
+    Future {
+      val bestOfGen = s.par.map(_.min()(OrderingTupleBySecond[S, E]()(o))).min(OrderingTupleBySecond[S, E]()(o))
+      if (bestSoFar.isEmpty || o.lt(bestOfGen._2, best.get._2)) {
+        best = Some(bestOfGen)
+        updateBest(s)
+      }
+      println(f"Gen: ${cnt.count}  BestSoFar: ${bestSoFar.get}")
+      if (snapFreq > 0 && cnt.count % snapFreq == 0)
+        coll.saveSnapshot(f"${cnt.count}%04d")
     }
-    println(f"Gen: ${cnt.count}  BestSoFar: ${bestSoFar.get}")
-    if (snapFreq > 0 && cnt.count % snapFreq == 0)
-      coll.saveSnapshot(f"${cnt.count}%04d")
     s
   }
 

@@ -19,3 +19,5 @@ triggeredMessage in ThisBuild := Watched.clearWhenTriggered
 cancelable in Global := true
 
 scalacOptions += "-target:jvm-1.7"
+
+assemblyOption in assembly := (assemblyOption in assembly).value.copy(includeScala = false)
